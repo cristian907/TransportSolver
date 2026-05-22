@@ -36,17 +36,17 @@ graph TD
     classDef ai fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff;
     classDef output fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff;
 
-    A[run_gui.py <br> Interfaz PyQt6 Premium]:::highlight -->|Solicita Resolución| B[src/transporte/core.py <br> Núcleo del Paquete]
-    C[run_cli.py <br> Consola Interactiva]:::highlight -->|Solicita Resolución| B
+    A["run_gui.py <br> Interfaz PyQt6 Premium"]:::highlight -->|Solicita Resolución| B["src/transporte/core.py <br> Núcleo del Paquete"]
+    C["run_cli.py <br> Consola Interactiva"]:::highlight -->|Solicita Resolución| B
     
-    B -->|1. Valida y Balancea| D[src/transporte/models.py <br> Modelos de Datos]
-    B -->|2. Resuelve Iterativamente| E[src/transporte/solvers.py <br> Solucionadores Matemáticos]
-    B -->|3. Genera Diagnóstico| F[src/transporte/groq.py <br> Cliente Groq AI]:::ai
+    B -->|1. Valida y Balancea| D["src/transporte/models.py <br> Modelos de Datos"]
+    B -->|2. Resuelve Iterativamente| E["src/transporte/solvers.py <br> Solucionadores Matemáticos"]
+    B -->|3. Genera Diagnóstico| F["src/transporte/groq.py <br> Cliente Groq AI"]:::ai
     
     E -->|Bitácora Paso a Paso + Matrices| B
     F -->|Análisis Logístico Ejecutivo| B
     
-    B -->|4. Guarda Automáticamente| G[(reporte_transporte.txt)]:::output
+    B -->|4. Guarda Automáticamente| G[("reporte_transporte.txt")]:::output
     B -->|5. Renderiza Resultados| A
     B -->|5. Imprime en Consola| C
 ```
@@ -136,4 +136,5 @@ python run_cli.py
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para obtener más detalles.
+# TransportSolver
 # TransportSolver
