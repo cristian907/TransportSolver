@@ -1,0 +1,27 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Directorios de respaldo histórico solicitados por el usuario
+old/
+
+# Archivo de reporte generado automáticamente
+reporte_transporte.txt
+
+# Variables de entorno y llaves secretas
+.env
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Archivos del sistema u editores
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
