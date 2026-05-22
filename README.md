@@ -1,5 +1,12 @@
 # 🧮 Sistema Inteligente de Optimización de Transporte
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/PyQt6-v6.0+-41CD52?style=for-the-badge&logo=qt&logoColor=white" alt="PyQt6" />
+  <img src="https://img.shields.io/badge/Groq_AI-Llama_3-10b981?style=for-the-badge&logo=openai&logoColor=white" alt="Groq AI" />
+  <img src="https://img.shields.io/badge/License-MIT-f59e0b?style=for-the-badge" alt="License" />
+</p>
+
 Una suite premium, modular y robusta para modelar y resolver problemas de transporte y distribución en logística, un tema central de la **Programación Matemática** e Investigación de Operaciones. 
 
 Este proyecto implementa solucionadores deterministas desde cero (sin dependencias matemáticas externas), una potente interfaz gráfica (GUI) unificada basada en PyQt6 y una interfaz de consola (CLI) interactiva. Adicionalmente, cuenta con integración nativa con la **API de Groq (Llama 3)** para proporcionar diagnósticos, análisis de sensibilidad y recomendaciones logísticas con Inteligencia Artificial.
