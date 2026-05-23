@@ -9,7 +9,13 @@ from typing import List, Optional
 
 from transporte.groq import generar_conclusion
 from transporte.models import Matriz, ResultadoTransporte, Vector
-from transporte.solvers import resolver_coste_minimo, resolver_esquina_noroeste, resolver_vogel
+from transporte.solvers import (
+    resolver_coste_minimo,
+    resolver_esquina_noroeste,
+    resolver_vogel,
+    resolver_hungaro,
+)
+
 
 
 # ─────────────────────────────────────────────
@@ -20,14 +26,23 @@ def _encabezado(titulo: str, ancho: int = 70) -> str:
 
 
 def _imprimir_matriz(
-    titulo: str, matriz: Matriz, origenes: List[str], destinos: List[str]
+    titulo: str,
+    matriz: Matriz,
+    origenes: List[str],
+    destinos: List[str],
+    oferta: Optional[Vector] = None,
+    demanda: Optional[Vector] = None,
 ) -> None:
     print(f"\n  {titulo}")
-    ancho_col = max(10, max([len(d) for d in destinos]) + 2)
-    ancho_fila = max(12, max([len(o) for o in origenes]) + 2)
+    destinos_header = list(destinos)
+    if oferta is not None:
+        destinos_header.append("Oferta")
+
+    ancho_col = max(10, max([len(d) for d in destinos_header]) + 2)
+    ancho_fila = max(12, max([len(o) for o in origenes] + [len("Demanda")]) + 2)
 
     print(f"  {'':>{ancho_fila}}", end="")
-    for d in destinos:
+    for d in destinos_header:
         print(f"{d:>{ancho_col}}", end="")
     print()
 
@@ -36,6 +51,16 @@ def _imprimir_matriz(
         print(f"  {etiqueta:>{ancho_fila}}", end="")
         for val in fila:
             print(f"{val:>{ancho_col}.1f}", end="")
+        if oferta is not None and i < len(oferta):
+            print(f"{oferta[i]:>{ancho_col}.1f}", end="")
+        print()
+
+    if demanda is not None:
+        print(f"  {'Demanda':>{ancho_fila}}", end="")
+        for val in demanda:
+            print(f"{val:>{ancho_col}.1f}", end="")
+        if oferta is not None:
+            print(f"{sum(oferta):>{ancho_col}.1f}", end="")
         print()
 
 
@@ -145,6 +170,8 @@ def mostrar_resultado_cli(
         resultado.matriz_costos_original,
         nombres_orig,
         nombres_dest,
+        resultado.oferta_original,
+        resultado.demanda_original,
     )
     _imprimir_vector("Oferta", resultado.oferta_original, nombres_orig)
     _imprimir_vector("Demanda", resultado.demanda_original, nombres_dest)
@@ -157,12 +184,14 @@ def mostrar_resultado_cli(
             resultado.matriz_costos_balanceada,
             or_b,
             de_b,
+            resultado.oferta_balanceada,
+            resultado.demanda_balanceada,
         )
     else:
         print("  ✓ La tabla ya estaba balanceada; no se requirieron ajustes.")
 
     print(_encabezado(f"SOLUCIÓN — {titulo_metodo}"))
-    _imprimir_matriz("Matriz de Asignaciones:", resultado.asignaciones, or_b, de_b)
+    _imprimir_matriz("Matriz de Asignaciones:", resultado.asignaciones, or_b, de_b, resultado.oferta_balanceada, resultado.demanda_balanceada)
     print(f"\n  ★ COSTO TOTAL DISTRIBUIDO: {resultado.costo_total:.2f}")
 
     print(_encabezado("PASOS DEL ALGORITMO"))
@@ -179,25 +208,48 @@ def main() -> None:
     print("    1. Método de la Esquina Noroeste")
     print("    2. Método del Costo Mínimo")
     print("    3. Método de Aproximación de Vogel (VAM)")
+    print("    4. Método Húngaro (Asignación)")
 
     metodo = 0
     while True:
         try:
-            opcion = int(input("\n  Opción (1-3): "))
-            if opcion in (1, 2, 3):
+            opcion = int(input("\n  Opción (1-4): "))
+            if opcion in (1, 2, 3, 4):
                 metodo = opcion
                 break
-            print("  ✗ Por favor, selecciona una opción entre 1 y 3.")
+            print("  ✗ Por favor, selecciona una opción entre 1 y 4.")
         except ValueError:
-            print("  ✗ Entrada inválida. Digita un número del 1 al 3.")
+            print("  ✗ Entrada inválida. Digita un número del 1 al 4.")
 
     nombres_metodos = {
         1: ("MÉTODO DE LA ESQUINA NOROESTE", resolver_esquina_noroeste),
         2: ("MÉTODO DEL COSTO MÍNIMO", resolver_coste_minimo),
         3: ("MÉTODO DE APROXIMACIÓN DE VOGEL (VAM)", resolver_vogel),
+        4: ("MÉTODO HÚNGARO (ASIGNACIÓN)", resolver_hungaro),
     }
 
     titulo_metodo, solver_func = nombres_metodos[metodo]
+
+    maximizar = False
+    if metodo == 4:
+        print("\n  Selecciona el tipo de optimización para el Método Húngaro:")
+        print("    1. Minimizar costos")
+        print("    2. Maximizar beneficios")
+        opt_tipo = 0
+        while True:
+            try:
+                opt_opcion = int(input("\n    Opción (1-2): "))
+                if opt_opcion in (1, 2):
+                    opt_tipo = opt_opcion
+                    break
+                print("    ✗ Por favor, selecciona 1 o 2.")
+            except ValueError:
+                print("    ✗ Entrada inválida. Ingresa un número del 1 al 2.")
+        if opt_tipo == 2:
+            maximizar = True
+            titulo_metodo = "MÉTODO HÚNGARO (MAXIMIZACIÓN DE ASIGNACIÓN)"
+        else:
+            titulo_metodo = "MÉTODO HÚNGARO (MINIMIZACIÓN DE ASIGNACIÓN)"
 
     print(_encabezado(f"CONFIGURACIÓN — {titulo_metodo}"))
 
@@ -211,13 +263,22 @@ def main() -> None:
 
     # Costos, Oferta y Demanda
     costos = _leer_matriz_con_nombres(nombres_orig, nombres_dest)
-    oferta = _leer_vector_con_nombres("Vector de Oferta", nombres_orig)
-    demanda = _leer_vector_con_nombres("Vector de Demanda", nombres_dest)
+    if metodo == 4:
+        print("\n  ℹ Para el Método Húngaro, la Oferta y Demanda se configuran automáticamente en 1.")
+        oferta = [1.0] * num_origenes
+        demanda = [1.0] * num_destinos
+    else:
+        oferta = _leer_vector_con_nombres("Vector de Oferta", nombres_orig)
+        demanda = _leer_vector_con_nombres("Vector de Demanda", nombres_dest)
+
 
     print(_encabezado("EJECUTANDO CÁLCULOS..."))
 
     try:
-        resultado = solver_func(costos, oferta, demanda)
+        if metodo == 4:
+            resultado = solver_func(costos, oferta, demanda, maximizar=maximizar)
+        else:
+            resultado = solver_func(costos, oferta, demanda)
     except Exception as e:
         print(f"\n  ✗ Error interno al resolver: {e}\n")
         return

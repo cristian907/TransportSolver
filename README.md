@@ -19,6 +19,7 @@ Este proyecto implementa solucionadores deterministas desde cero (sin dependenci
     *   **Método de la Esquina Noroeste:** Asignación inicial clásica y sistemática.
     *   **Método del Costo Mínimo:** Algoritmo goloso (greedy) que prioriza tarifas óptimas.
     *   **Método de Aproximación de Vogel (VAM):** Evaluaciones basadas en penalidades de costo de oportunidad.
+    *   **Método Húngaro (Kuhn-Munkres):** Algoritmo de optimización combinatoria para resolver problemas de asignación (uno-a-uno) en tiempo polinómico con balanceo cuadrado automático.
 *   **Gestión Inteligente de Matrices:**
     *   **Balanceo Automático:** Detección de diferencias entre Oferta y Demanda totales con inyección automática de orígenes o destinos ficticios ($0 de costo unitario).
     *   **Manejo de Degeneración:** Detección precisa de agotamientos simultáneos de oferta/demanda con cancelación matemática en tiempo real.

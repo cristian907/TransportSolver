@@ -5,9 +5,9 @@ core.py — Funciones de núcleo y utilidades (validación y balanceo) del Probl
 from __future__ import annotations
 
 import copy
-from typing import Tuple
+from typing import List, Optional, Tuple
 
-from transporte.models import Matriz, Vector
+from transporte.models import Matriz, ResultadoTransporte, Vector
 
 
 def validar_entradas(
@@ -117,12 +117,18 @@ def _format_matriz_reporte(
     matriz: Matriz,
     origenes: List[str],
     destinos: List[str],
+    oferta: Optional[Vector] = None,
+    demanda: Optional[Vector] = None,
 ) -> str:
-    ancho_col = max(12, max([len(d) for d in destinos]) + 2)
-    ancho_fila = max(16, max([len(o) for o in origenes]) + 2)
+    destinos_header = list(destinos)
+    if oferta is not None:
+        destinos_header.append("Oferta")
+
+    ancho_col = max(12, max([len(d) for d in destinos_header]) + 2)
+    ancho_fila = max(16, max([len(o) for o in origenes] + [len("Demanda")]) + 2)
 
     res = f"  {'':>{ancho_fila}}"
-    for d in destinos:
+    for d in destinos_header:
         res += f"{d:>{ancho_col}}"
     res += "\n"
 
@@ -131,6 +137,16 @@ def _format_matriz_reporte(
         res += f"  {etiq:>{ancho_fila}}"
         for val in fila:
             res += f"{val:>{ancho_col}.1f}"
+        if oferta is not None and i < len(oferta):
+            res += f"{oferta[i]:>{ancho_col}.1f}"
+        res += "\n"
+
+    if demanda is not None:
+        res += f"  {'Demanda':>{ancho_fila}}"
+        for val in demanda:
+            res += f"{val:>{ancho_col}.1f}"
+        if oferta is not None:
+            res += f"{sum(oferta):>{ancho_col}.1f}"
         res += "\n"
     return res
 
@@ -163,7 +179,7 @@ def generar_texto_reporte(
 
     enc("DATOS DE ENTRADA")
     lineas.append("\n  Matriz de Costos (Original):")
-    lineas.append(_format_matriz_reporte(resultado.matriz_costos_original, nombres_orig, nombres_dest))
+    lineas.append(_format_matriz_reporte(resultado.matriz_costos_original, nombres_orig, nombres_dest, resultado.oferta_original, resultado.demanda_original))
     lineas.append(_format_vector_reporte("Oferta", resultado.oferta_original, nombres_orig))
     lineas.append(_format_vector_reporte("Demanda", resultado.demanda_original, nombres_dest))
 
@@ -171,13 +187,13 @@ def generar_texto_reporte(
     if resultado.fue_balanceada:
         lineas.append(f"  ⚠ {resultado.tipo_balanceo}\n")
         lineas.append("\n  Matriz de Costos (Balanceada):")
-        lineas.append(_format_matriz_reporte(resultado.matriz_costos_balanceada, or_b, de_b))
+        lineas.append(_format_matriz_reporte(resultado.matriz_costos_balanceada, or_b, de_b, resultado.oferta_balanceada, resultado.demanda_balanceada))
     else:
         lineas.append("  ✓ La tabla ya estaba balanceada; no se requirieron ajustes.\n")
 
     enc(f"SOLUCIÓN — {titulo_metodo.upper()}")
     lineas.append("\n  Matriz de Asignaciones:")
-    lineas.append(_format_matriz_reporte(resultado.asignaciones, or_b, de_b))
+    lineas.append(_format_matriz_reporte(resultado.asignaciones, or_b, de_b, resultado.oferta_balanceada, resultado.demanda_balanceada))
     lineas.append(f"  ★ COSTO TOTAL DISTRIBUIDO: {resultado.costo_total:.2f}\n")
 
     enc("PASOS DEL ALGORITMO")

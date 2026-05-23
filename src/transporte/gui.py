@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sys
 import threading
-from typing import List
+from typing import List, Optional
 
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -31,7 +31,13 @@ from PyQt6.QtWidgets import (
 
 from transporte.groq import generar_conclusion
 from transporte.models import Matriz, ResultadoTransporte, Vector
-from transporte.solvers import resolver_coste_minimo, resolver_esquina_noroeste, resolver_vogel
+from transporte.solvers import (
+    resolver_coste_minimo,
+    resolver_esquina_noroeste,
+    resolver_vogel,
+    resolver_hungaro,
+)
+
 
 # ─────────────────────────────────────────────
 # QSS (Hojas de Estilo de Qt) para estética Premium
@@ -235,12 +241,15 @@ class MainWindow(QMainWindow):
                 "Método del Costo Mínimo",
                 "Método de la Esquina Noroeste",
                 "Aproximación de Vogel (VAM)",
+                "Método Húngaro (Minimizar Asignación)",
+                "Método Húngaro (Maximizar Asignación)",
             ]
         )
         self.cmb_alg.setMaximumWidth(300)
         h_alg.addWidget(lbl_alg)
         h_alg.addWidget(self.cmb_alg)
         form_layout.addLayout(h_alg)
+
 
         layout.addWidget(form_widget)
 
@@ -312,10 +321,17 @@ class MainWindow(QMainWindow):
                     item.setFlags(Qt.ItemFlag.NoItemFlags)
                     item.setBackground(Qt.GlobalColor.darkGray)
                     self.table.setItem(i, j, item)
+                elif "Método Húngaro" in self.metodo_seleccionado and (i == r or j == c):
+                    item = QTableWidgetItem("1")
+                    item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    item.setBackground(Qt.GlobalColor.darkGray)
+                    self.table.setItem(i, j, item)
                 else:
                     item = QTableWidgetItem("0")
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     self.table.setItem(i, j, item)
+
 
         # Ajuste de tamaño automático
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -421,12 +437,23 @@ class MainWindow(QMainWindow):
             "Método del Costo Mínimo": resolver_coste_minimo,
             "Método de la Esquina Noroeste": resolver_esquina_noroeste,
             "Aproximación de Vogel (VAM)": resolver_vogel,
+            "Método Húngaro (Minimizar Asignación)": resolver_hungaro,
+            "Método Húngaro (Maximizar Asignación)": resolver_hungaro,
         }
+
 
         solver_func = solvers_dict[self.metodo_seleccionado]
 
         try:
-            resultado = solver_func(costos, oferta, demanda)
+            if "Método Húngaro" in self.metodo_seleccionado:
+                resultado = solver_func(
+                    costos,
+                    oferta,
+                    demanda,
+                    maximizar=(self.metodo_seleccionado == "Método Húngaro (Maximizar Asignación)")
+                )
+            else:
+                resultado = solver_func(costos, oferta, demanda)
         except Exception as e:
             QMessageBox.critical(self, "Error de Resolución", f"Error interno en el algoritmo: {e}")
             return
@@ -453,13 +480,24 @@ class MainWindow(QMainWindow):
         def p(msg: str):
             self.txt_reporte.append(msg)
 
-        def format_matriz(titulo: str, matriz: Matriz, origenes: List[str], destinos: List[str]) -> str:
-            ancho_col = max(12, max([len(d) for d in destinos]) + 2)
-            ancho_fila = max(16, max([len(o) for o in origenes]) + 2)
+        def format_matriz(
+            titulo: str,
+            matriz: Matriz,
+            origenes: List[str],
+            destinos: List[str],
+            oferta: Optional[Vector] = None,
+            demanda: Optional[Vector] = None,
+        ) -> str:
+            destinos_header = list(destinos)
+            if oferta is not None:
+                destinos_header.append("Oferta")
+
+            ancho_col = max(12, max([len(d) for d in destinos_header]) + 2)
+            ancho_fila = max(16, max([len(o) for o in origenes] + [len("Demanda")]) + 2)
 
             res = f"\n  {titulo}\n"
             res += f"  {'':>{ancho_fila}}"
-            for d in destinos:
+            for d in destinos_header:
                 res += f"{d:>{ancho_col}}"
             res += "\n"
 
@@ -468,6 +506,16 @@ class MainWindow(QMainWindow):
                 res += f"  {etiq:>{ancho_fila}}"
                 for val in fila:
                     res += f"{val:>{ancho_col}.1f}"
+                if oferta is not None and i < len(oferta):
+                    res += f"{oferta[i]:>{ancho_col}.1f}"
+                res += "\n"
+
+            if demanda is not None:
+                res += f"  {'Demanda':>{ancho_fila}}"
+                for val in demanda:
+                    res += f"{val:>{ancho_col}.1f}"
+                if oferta is not None:
+                    res += f"{sum(oferta):>{ancho_col}.1f}"
                 res += "\n"
             return res
 
@@ -484,7 +532,7 @@ class MainWindow(QMainWindow):
         p("=" * 70)
         p("  1. DATOS ORIGINALES DEL PROBLEMA")
         p("=" * 70)
-        p(format_matriz("Tabla de Costos Unitarios:", resultado.matriz_costos_original, nombres_orig, nombres_dest))
+        p(format_matriz("Tabla de Costos Unitarios:", resultado.matriz_costos_original, nombres_orig, nombres_dest, resultado.oferta_original, resultado.demanda_original))
         p(format_vector("Oferta", resultado.oferta_original, nombres_orig))
         p(format_vector("Demanda", resultado.demanda_original, nombres_dest))
 
@@ -493,14 +541,14 @@ class MainWindow(QMainWindow):
         p("=" * 70)
         if resultado.fue_balanceada:
             p(f"  [Ajuste de Capacidad]: {resultado.tipo_balanceo}")
-            p(format_matriz("Tabla de Costos (Balanceada):", resultado.matriz_costos_balanceada, or_b, de_b))
+            p(format_matriz("Tabla de Costos (Balanceada):", resultado.matriz_costos_balanceada, or_b, de_b, resultado.oferta_balanceada, resultado.demanda_balanceada))
         else:
             p("  [✓ OK]: Oferta y Demanda balanceadas perfectamente de forma nativa.")
 
         p("\n" + "=" * 70)
         p("  3. RESULTADO DE ASIGNACIONES ÓPTIMAS")
         p("=" * 70)
-        p(format_matriz("Matriz de Asignaciones (Unidades a enviar):", resultado.asignaciones, or_b, de_b))
+        p(format_matriz("Matriz de Asignaciones (Unidades a enviar):", resultado.asignaciones, or_b, de_b, resultado.oferta_balanceada, resultado.demanda_balanceada))
         p(f"  ★ COSTO TOTAL MÍNIMO DISTRIBUIDO: $ {resultado.costo_total:.2f}\n")
 
         p("=" * 70)

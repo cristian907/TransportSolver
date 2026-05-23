@@ -6,8 +6,8 @@ env/
 # Directorios de respaldo histórico solicitados por el usuario
 old/
 
-# Archivo de reporte generado automáticamente
-reporte_transporte.txt
+# Archivos de reporte y texto generados
+*.txt
 
 # Variables de entorno y llaves secretas
 .env

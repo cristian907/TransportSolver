@@ -12,6 +12,7 @@ from transporte.solvers import (
     resolver_coste_minimo,
     resolver_esquina_noroeste,
     resolver_vogel,
+    resolver_hungaro,
 )
 
 __all__ = [
@@ -23,7 +24,9 @@ __all__ = [
     "resolver_coste_minimo",
     "resolver_esquina_noroeste",
     "resolver_vogel",
+    "resolver_hungaro",
     "generar_conclusion",
     "generar_texto_reporte",
     "guardar_reporte_txt",
 ]
+
